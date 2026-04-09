@@ -1,0 +1,68 @@
+body { background: #000; margin: 0; overflow: hidden; }
+canvas { position: absolute; top: 0; left: 0; }
+#lilyCanvas { z-index: 2; pointer-events: auto; }
+#matrix-canvas { z-index: 1; pointer-events: none; }
+
+#mensajeAfrodita {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 500;
+    color: #fff;
+    font-family: 'Georgia', serif;
+    font-size: 2.2rem;
+    font-style: italic;
+    text-shadow: 0 0 15px #9333ea, 0 0 25px #d1a3ff;
+    opacity: 0;
+    transition: opacity 2.5s ease-in-out;
+    pointer-events: none;
+    text-align: center;
+    width: 80%;
+    line-height: 1.5;
+}
+
+#mensajeAfrodita.visible { opacity: 1; }
+
+#mensajeAfrodita p {
+    font-size: 1.1rem;
+    margin-top: 25px;
+    max-width: 650px;
+    margin-left: auto;
+    margin-right: auto;
+    color: #eee;
+}
+
+#btnSorpresa, #btnCambio {
+    position: absolute; 
+    bottom: 20px; 
+    z-index: 1000; 
+    padding: 12px 25px; 
+    background: rgba(0, 0, 0, 0.8); 
+    color: #d1a3ff;
+    border: 2px solid #9333ea; 
+    border-radius: 25px; 
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+#btnSorpresa { left: calc(50% - 110px); transform: translateX(-50%); }
+#btnCambio { left: calc(50% + 110px); transform: translateX(-50%); }
+
+#btnSorpresa:hover, #btnCambio:hover {
+    background: #9333ea;
+    color: #fff;
+    box-shadow: 0 0 20px #9333ea;
+    transform: translateX(-50%) scale(1.05);
+}
+
+@media (max-width: 600px) {
+    #mensajeAfrodita { font-size: 1.5rem; width: 95%; }
+    #mensajeAfrodita p { font-size: 0.9rem; }
+    #btnSorpresa { left: 50%; bottom: 80px; }
+    #btnCambio { left: 50%; bottom: 20px; }
+}

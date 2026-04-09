@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Valeria: Universo Final</title>
+    <link rel="stylesheet" href="hola.css">
+</head>
+<body>
+    <button id="btnSorpresa">SORPRESA</button>
+    <button id="btnCambio">CAMBIO</button>
+    
+    <div id="mensajeAfrodita">
+        Esto es para mi afrodita<br>
+        Te quiero mucho mi chica hermosa y preciosa<br>
+        Proverbios 3:15<br>
+        <p>destacas el valor incalculable de la sabiduría, afirmando que es más preciosa que las piedras preciosas y que ningún deseo terrenal se compara con ella.</p>
+    </div>
+
+    <canvas id="lilyCanvas"></canvas>
+    <canvas id="matrix-canvas"></canvas>
+
+    <audio id="musicaFondo" src="audio/cancion1.mp3"></audio>
+
+    <script src="hola.js"></script>
+    <script>
+        const canvasGL = document.getElementById('lilyCanvas');
+        const gl = canvasGL.getContext('webgl', { alpha: true, premultipliedAlpha: false });
+        const mensaje = document.getElementById('mensajeAfrodita');
+
+        let zoom = 1.0, rotation = 0, offsetX = 0, offsetY = 0, isDragging = false, lastMouseX, lastMouseY;
+        let explotando = false, factorExplosion = 0, opacidadCorazon = 1.0;
+
+        const numParticles = 120000;
+        const particles = new Float32Array(numParticles * 10);
+
+        function generateParticles() {
+            for (let i = 0; i < numParticles; i++) {
+                let px, py, pz, cr, cg, cb, vx, vy, vz, type;
+                if (i > numParticles - 30000) {
+                    const radius = 50 + Math.random() * 800;
+                    const theta = Math.random() * Math.PI * 2, phi = Math.acos(2 * Math.random() - 1);
+                    px = radius * Math.sin(phi) * Math.cos(theta);
+                    py = radius * Math.sin(phi) * Math.sin(theta);
+                    pz = radius * Math.cos(phi);
+                    cr = 1.0; cg = 1.0; cb = 1.0;
+                    vx = 0; vy = 0; vz = 0; type = 0.0;
+                } else {
+                    type = 1.0;
+                    if (i > numParticles - 35000) {
+                        const side = Math.random() > 0.5 ? 1 : -1;
+                        const pos = Math.random();
+                        px = pos * 4.0 * side; py = (pos * 6.0) - 3.0; pz = (Math.random() - 0.5) * 2.0;
+                        cr = 1.0; cg = 0.0; cb = 0.0;
+                    } else {
+                        const t = Math.random() * Math.PI * 2;
+                        const r = Math.pow(Math.random(), 0.5) * 15;
+                        px = 1.6 * Math.pow(Math.sin(t), 3) * r;
+                        py = (1.3 * Math.cos(t) - 0.5 * Math.cos(2*t) - 0.2 * Math.cos(3*t) - 0.1 * Math.cos(4*t)) * r;
+                        pz = (Math.random() - 0.5) * r * 0.5;
+                        const d = r / 15;
+                        if (d < 0.2) { cr = 1.0; cg = 1.0; cb = 1.0; }
+                        else if (d < 0.6) { cr = 0.3; cg = 0.7; cb = 1.0; }
+                        else { cr = 0.7; cg = 0.3; cb = 1.0; }
+                    }
+                    vx = (px * 0.15) + (Math.random() - 0.5) * 2.0;
+                    vy = (py * 0.15) + (Math.random() - 0.5) * 2.0;
+                    vz = (pz * 0.15) + (Math.random() - 0.5) * 2.0;
+                }
+                const idx = i * 10;
+                particles[idx]=px; particles[idx+1]=py; particles[idx+2]=pz;
+                particles[idx+3]=cr; particles[idx+4]=cg; particles[idx+5]=cb;
+                particles[idx+6]=vx; particles[idx+7]=vy; particles[idx+8]=vz;
+                particles[idx+9]=type;
+            }
+        }
+        generateParticles();
+
+        const vsSource = `
+            attribute vec3 aPos; attribute vec3 aCol; attribute vec3 aDir; attribute float aType;
+            varying vec3 vCol; varying float vAlpha;
+            uniform mat4 uP; uniform mat4 uV; uniform float uExp; uniform float uOpCor;
+            void main() {
+                vCol = aCol;
+                vec3 newPos = aPos + (aDir * uExp * aType);
+                vAlpha = (1.0 - aType) + (uOpCor * aType);
+                vec4 pos = uV * vec4(newPos, 1.0);
+                gl_Position = uP * pos;
+                gl_PointSize = max(1.1, 8.0 / (1.0 - pos.z * 0.02));
+            }`;
+        const fsSource = `precision mediump float; varying vec3 vCol; varying float vAlpha; void main() { float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard; gl_FragColor = vec4(vCol, (1.0 - smoothstep(0.0, 0.5, d)) * vAlpha); }`;
+
+        function createShader(gl, type, src) {
+            const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s;
+        }
+        const prog = gl.createProgram();
+        gl.attachShader(prog, createShader(gl, gl.VERTEX_SHADER, vsSource));
+        gl.attachShader(prog, createShader(gl, gl.FRAGMENT_SHADER, fsSource));
+        gl.linkProgram(prog); gl.useProgram(prog);
+
+        const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        gl.bufferData(gl.ARRAY_BUFFER, particles, gl.STATIC_DRAW);
+        
+        const locs = {
+            aPos: gl.getAttribLocation(prog, 'aPos'), aCol: gl.getAttribLocation(prog, 'aCol'),
+            aDir: gl.getAttribLocation(prog, 'aDir'), aType: gl.getAttribLocation(prog, 'aType'),
+            uP: gl.getUniformLocation(prog, 'uP'), uV: gl.getUniformLocation(prog, 'uV'),
+            uExp: gl.getUniformLocation(prog, 'uExp'), uOpCor: gl.getUniformLocation(prog, 'uOpCor')
+        };
+
+        gl.vertexAttribPointer(locs.aPos, 3, gl.FLOAT, false, 40, 0); gl.enableVertexAttribArray(locs.aPos);
+        gl.vertexAttribPointer(locs.aCol, 3, gl.FLOAT, false, 40, 12); gl.enableVertexAttribArray(locs.aCol);
+        gl.vertexAttribPointer(locs.aDir, 3, gl.FLOAT, false, 40, 24); gl.enableVertexAttribArray(locs.aDir);
+        gl.vertexAttribPointer(locs.aType, 1, gl.FLOAT, false, 40, 36); gl.enableVertexAttribArray(locs.aType);
+
+        function mainRender() {
+            gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+
+            if (explotando) {
+                factorExplosion += 0.4; opacidadCorazon -= 0.006;
+                if (opacidadCorazon < 0) opacidadCorazon = 0;
+            } else {
+                factorExplosion = 0; opacidadCorazon = 1.0;
+            }
+
+            const asp = canvasGL.width / canvasGL.height;
+            const f = 1.0 / Math.tan(0.5);
+            const proj = [f/asp,0,0,0, 0,f,0,0, 0,0,1.0004,-1, 0,0,0.2,0];
+            gl.uniformMatrix4fv(locs.uP, false, proj);
+
+            rotation += 0.008;
+            const camZ = 45.0 / zoom;
+            const c = Math.cos(rotation), s = Math.sin(rotation);
+            const view = [c, 0, s, 0, 0, 1, 0, 0, -s, 0, c, 0, offsetX, -offsetY, -camZ, 1];
+            
+            gl.uniformMatrix4fv(locs.uV, false, view);
+            gl.uniform1f(locs.uExp, factorExplosion);
+            gl.uniform1f(locs.uOpCor, opacidadCorazon);
+            gl.drawArrays(gl.POINTS, 0, numParticles);
+
+            if (window.draw2DEffects) window.draw2DEffects();
+            requestAnimationFrame(mainRender);
+        }
+
+        document.getElementById('btnSorpresa').addEventListener('click', function() {
+            explotando = !explotando;
+            this.innerText = explotando ? "REINICIAR" : "SORPRESA";
+            if (explotando) {
+                mensaje.classList.add('visible');
+            } else {
+                mensaje.classList.remove('visible');
+            }
+        });
+
+        window.addEventListener('wheel', e => { e.preventDefault(); zoom *= (e.deltaY > 0) ? 0.85 : 1.15; zoom = Math.min(Math.max(zoom, 0.05), 10.0); }, { passive: false });
+        canvasGL.addEventListener('mousedown', e => { isDragging = true; lastMouseX = e.clientX; lastMouseY = e.clientY; });
+        window.addEventListener('mousemove', e => { if (isDragging) { offsetX += (e.clientX - lastMouseX) * (0.05 / zoom); offsetY += (e.clientY - lastMouseY) * (0.05 / zoom); lastMouseX = e.clientX; lastMouseY = e.clientY; } });
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        canvasGL.width = window.innerWidth; canvasGL.height = window.innerHeight;
+        gl.viewport(0, 0, canvasGL.width, canvasGL.height);
+        mainRender();
+    </script>
+</body>
+</html>
